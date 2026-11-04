@@ -125,7 +125,27 @@ or the `.Report` folder itself. The terminal always shows a summary; add any of:
 |---|---|
 | `--html PATH` | Self-contained HTML report: summary, page wireframes coloured by status, a drill-down per visual that shows the file (and JSON Pointer) where each finding is defined. Works offline. [Example](https://m-c-v-k.github.io/pbi-report-validator/report.html) |
 | `--markdown PATH` | Summary for a pull request comment, kept under GitHub's size limit |
-| `--json PATH` | Every finding with old and new values and where the object is defined in each version (`old_location` / `new_location`: the file in the project and a JSON Pointer, or the TMDL object for measures), plus every page and visual with its status, and counts per severity (`schema_version` 1.9) |
+| `--json PATH` | Every finding with old and new values, an explicit `scope` and where the object is defined in each version (`old_location` / `new_location`: the file in the project and a JSON Pointer, or the TMDL object for measures), plus every page and visual with its status, and counts per severity (`schema_version` 1.10) |
+
+JSON schema **1.10** adds `scope` to every finding. Use `(scope, path)` to
+identify the object's namespace; page names may be `report`, `model`, `old`,
+`new` or `ai`, so the path prefix alone is not enough.
+
+| `scope` | Findings | Example `path` |
+|---|---|---|
+| `report` | Report-level filters | `report/filters/f` |
+| `page` | Pages, visuals, fields, page/visual filters, slicers and data | `report/filters/f` (a filter on a page named `report`) |
+| `model` | Measures | `model/Sales/Total Sales` |
+| `parse` | Parse issues and missing-model warnings | `new/model` |
+| `ai` | AI failure notes | `ai/explanations` |
+
+Existing paths, categories, severities and values are unchanged. CI readers
+that ignore unknown fields can keep reading the output; readers that validate
+the schema version or forbid unknown fields must accept version 1.10 and the
+new field. Update path-prefix routing to use `scope` before handling page
+names that collide with fixed prefixes. Older JSON cannot reliably distinguish
+same-name report and page filters; regenerate it with schema 1.10 when that
+distinction is needed.
 
 Running it on the sample reports in this repository gives:
 

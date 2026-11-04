@@ -19,6 +19,7 @@ from pbi_report_validator.domain.models import (
     ChangeKind,
     Filter,
     Finding,
+    FindingScope,
     MeasureRename,
     Projection,
     Report,
@@ -47,7 +48,7 @@ def diff_content(
         renames: Renamed or moved measures, keyed by old field key.
     """
     findings = [
-        f.model_copy(update={"report_level": True})
+        f.model_copy(update={"scope": FindingScope.REPORT})
         for f in _diff_filters(REPORT_PATH, old.filters, new.filters, renames)
     ]
     for page_match in match.pages:

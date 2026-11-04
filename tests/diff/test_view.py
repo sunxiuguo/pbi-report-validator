@@ -7,6 +7,7 @@ from pbi_report_validator.domain.models import (
     Category,
     ChangeKind,
     Finding,
+    FindingScope,
     ItemStatus,
     Page,
     Severity,
@@ -159,13 +160,15 @@ def test_unparseable_page_is_modified_not_removed(tmp_path: Path) -> None:
 
 
 def finding(category: Category, path: str, report_level: bool = False) -> Finding:
-    return Finding(
+    item = Finding(
         category=category,
         change=ChangeKind.MODIFIED,
         severity=Severity.WARNING,
         path=path,
         message="m",
-        report_level=report_level,
+    )
+    return (
+        item.model_copy(update={"scope": FindingScope.REPORT}) if report_level else item
     )
 
 

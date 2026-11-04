@@ -61,3 +61,13 @@ A copy of `sales_v2` with two deliberate changes, so the `field` and
 `Sales[Region]` is added to `table_product_sales`, and
 `overview/card_total_sales/visual.json` is invalid JSON on purpose. Details in
 [`EXPECTED_CHANGES.md`](EXPECTED_CHANGES.md).
+
+## Finding scope fixtures
+
+`finding_scope_v1` and `finding_scope_v2` are synthetic PBIR reports with
+pages named `report`, `model`, `old`, `new` and `ai`. Every page and the report
+itself has a filter called `f`, with identical conditions changing between
+versions. The report filter and the filter on page `report` therefore have
+the identical path `report/filters/f`, category, message and old/new values.
+Schema 1.10 distinguishes them with `scope`. Each visual also moves, and the
+synthetic measure changes, exercising page and model paths together.

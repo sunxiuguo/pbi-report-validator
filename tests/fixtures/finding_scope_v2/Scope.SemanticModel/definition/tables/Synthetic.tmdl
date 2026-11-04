@@ -1,0 +1,4 @@
+table Synthetic
+	measure Value = 2
+	column Year
+		dataType: int64

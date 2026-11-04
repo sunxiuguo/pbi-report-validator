@@ -74,7 +74,7 @@ def test_metadata_findings_are_kept_as_they_are(unmasked: DiffResult) -> None:
     sent = [f for f in payload.findings if f.category is not Category.DATA]
     assert kept
     assert [f.model_dump() for f in sent] == [
-        f.model_dump(exclude={"visual_path", "old_location", "new_location"})
+        f.model_dump(exclude={"visual_path", "scope", "old_location", "new_location"})
         for f in kept
     ]
 

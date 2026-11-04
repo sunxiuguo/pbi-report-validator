@@ -40,7 +40,7 @@ def build_payload(result: DiffResult, allow_data: bool) -> AiPayload:
 
 def _finding(finding: Finding, allow_data: bool) -> AiFinding:
     # Source locations are file paths in the project; the model needs none.
-    fields = finding.model_dump(exclude=SOURCE_LOCATIONS)
+    fields = finding.model_dump(exclude=SOURCE_LOCATIONS | {"scope"})
     payload = AiFinding.model_validate(fields)
     if allow_data or finding.category is not Category.DATA:
         return payload

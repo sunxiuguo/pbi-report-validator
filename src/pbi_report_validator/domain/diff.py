@@ -23,7 +23,7 @@ from pbi_report_validator.domain.report import (
 )
 from pbi_report_validator.domain.semantic import MeasureRename
 
-SCHEMA_VERSION: Final = "1.9"
+SCHEMA_VERSION: Final = "1.10"
 
 
 class MatchMethod(StrEnum):
@@ -107,7 +107,14 @@ class AiExplanation(DomainModel):
     text: str
 
 
-OFF_PAGE_CATEGORIES = frozenset({Category.MEASURE, Category.PARSE_ISSUE, Category.AI})
+class FindingScope(StrEnum):
+    """The namespace of a finding's path, independent of page names."""
+
+    REPORT = "report"
+    PAGE = "page"
+    MODEL = "model"
+    PARSE = "parse"
+    AI = "ai"
 
 
 class Finding(DomainModel):
@@ -120,9 +127,12 @@ class Finding(DomainModel):
     otherwise. ``old_location`` and ``new_location`` say where the object is
     defined in each version; ``None`` on a side where it does not exist,
     and for findings without a single source (data, AI, parse issues).
+    ``scope`` distinguishes report, page, model, parse and AI paths without
+    changing the paths themselves, even when a page has a reserved name.
     """
 
     category: Category
+    scope: FindingScope = FindingScope.PAGE
     change: ChangeKind
     severity: Severity
     path: str
@@ -132,13 +142,25 @@ class Finding(DomainModel):
     old_location: SourceLocation | None = None
     new_location: SourceLocation | None = None
     # The ``page/visual`` a parse issue belongs to. Used to show the issue on
-    # its visual in the HTML report; not part of the JSON output (schema
-    # unchanged), since it is already implied by ``path``.
+    # its visual in the HTML report; remains internal to the validation run.
     visual_path: str | None = Field(default=None, exclude=True)
-    # Set on report-level filters, whose path (``report/filters/...``) is the
-    # same as a filter on a page named ``report``. Not part of the JSON.
-    report_level: bool = Field(default=False, exclude=True)
     explanation: AiExplanation | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_scope(cls, data: object) -> object:
+        """Infer unambiguous scopes from category, never from path prefixes."""
+        if not isinstance(data, dict) or "scope" in data:
+            return data
+        category = data.get("category")
+        if not isinstance(category, str):
+            return data
+        scopes: dict[str, FindingScope] = {
+            Category.MEASURE: FindingScope.MODEL,
+            Category.PARSE_ISSUE: FindingScope.PARSE,
+            Category.AI: FindingScope.AI,
+        }
+        return {**data, "scope": scopes.get(category, FindingScope.PAGE)}
 
     @model_serializer(mode="wrap")
     def _without_empty_explanation(
@@ -150,6 +172,11 @@ class Finding(DomainModel):
         return data
 
     @property
+    def report_level(self) -> bool:
+        """Whether this finding belongs to the report rather than a page."""
+        return self.scope == FindingScope.REPORT
+
+    @property
     def page_path(self) -> str | None:
         """The ``page`` or ``page/...`` path the finding is inside, if any.
 
@@ -157,12 +184,12 @@ class Finding(DomainModel):
         a fixed prefix (``model``, ``old``, ``new``, ``ai``, ``report``) that
         a page can share as its name, so they belong to no page.
         """
-        if self.report_level or self.category in OFF_PAGE_CATEGORIES:
+        if self.scope != FindingScope.PAGE:
             return None
         return self.path
 
     @property
-    def sort_key(self) -> tuple[str, str, str, str, str, str]:
+    def sort_key(self) -> tuple[str, str, str, str, str, str, str]:
         """Key giving a total, readable order of findings."""
         return (
             self.path,
@@ -171,6 +198,7 @@ class Finding(DomainModel):
             self.message,
             self.old or "",
             self.new or "",
+            self.scope.value,
         )
 
 
@@ -273,11 +301,12 @@ class DiffResult(DomainModel):
     ``ai_suggestions`` (``--ai-match``); 1.7 added the optional
     ``explanation`` on findings (``--ai-explain``); 1.8 added ``attribution``
     and ``attribution_reason`` on data summaries (``--attribute``); 1.9
-    added ``old_location`` and ``new_location`` on findings.
+    added ``old_location`` and ``new_location`` on findings; 1.10 added
+    ``scope`` on findings to disambiguate page paths from fixed prefixes.
     """
 
     # Keep the Literal in sync with SCHEMA_VERSION (enforced by a test).
-    schema_version: Literal["1.9"] = SCHEMA_VERSION
+    schema_version: Literal["1.10"] = SCHEMA_VERSION
     old_source: str
     new_source: str
     findings: tuple[Finding, ...] = ()
